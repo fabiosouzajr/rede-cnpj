@@ -11,3 +11,5 @@ lxml
 pyarrow
 psutil
 tqdm
+selenium
+webdriver-manager
