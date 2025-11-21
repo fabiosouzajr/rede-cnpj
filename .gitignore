@@ -1,3 +1,5 @@
+*.pdf
+*.log
 *.pyc
 *.zip
 __pycache__/
