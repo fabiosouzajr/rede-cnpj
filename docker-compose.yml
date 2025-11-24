@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  rede:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rede-cnpj
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist databases
+      - ./rede/bases:/app/bases
+      # Persist uploaded files
+      - ./rede/arquivos:/app/arquivos
+      # Allow configuration override
+      - ./rede/rede.ini:/app/rede.ini
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/rede/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

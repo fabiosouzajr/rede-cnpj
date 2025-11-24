@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.venv
+venv/
+env/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+doc/
+*.md
+README*
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Other
+*.log
+.DS_Store
+
+# Data
+*.db
+*.db-journal
+*.db-lock
+*.db-wal
+*.db-shm
+*.db-trace
+*.db-trace-lock
+*.db-trace-wal
+*.db-trace-shm
+*.db-trace-journal
