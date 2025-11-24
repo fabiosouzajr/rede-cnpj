@@ -25,7 +25,7 @@ def requisitos():
         os.mkdir(pasta_cnpj)
     if not os.path.isdir(pasta_zip):
         os.mkdir(pasta_zip)
-        
+
     arquivos_existentes = list(glob.glob(pasta_cnpj +'/*.*')) + list(glob.glob(pasta_zip + '/*.*'))
     if len(arquivos_existentes):
         #eg.msgbox("Este programa baixa arquivos csv.zip de dados abertos da Receita Federal e converte para uso na RedeCNPJ aplicativo.\nIMPORTANTE: Para prosseguir, as pastas 'dados-publicos' e 'dados-publicos-zip', devem estar vazias, senão poderá haver inconsistências (juntar dados de meses distintos).\n",'Criar Bases RedeCNPJ')
@@ -50,8 +50,17 @@ requisitos()
 
 print(time.asctime(), f'Início de {sys.argv[0]}:')
 
+# Faz o parsing do HTML da página de dados abertos da Receita Federal
 soup_pagina_dados_abertos = BeautifulSoup(requests.get(url_dados_abertos).text, features="lxml")
 try:
+    # Determina a referência mais atual (pasta mais recente):
+    # 1. Encontra todos os links <a> na página HTML
+    # 2. Filtra apenas os links cujo href começa com '20' (formato de ano, ex: "2024-08/", "2024-09/")
+    # 3. Ordena a lista alfabeticamente - como os nomes são no formato "YYYY-MM/",
+    #    a ordenação alfabética coloca os mais recentes por último (ex: "2024-08" < "2024-09")
+    # 4. Pega o último elemento da lista ordenada [-1], que corresponde à pasta mais recente
+    # Exemplo: se houver ["2024-07/", "2024-08/", "2024-09/"], sorted() retorna a mesma ordem
+    # e [-1] seleciona "2024-09/", que é a referência mais atual
     ultima_referencia = sorted([link.get('href') for link in soup_pagina_dados_abertos.find_all('a') if link.get('href').startswith('20')])[-1]
 except:
     print('Não encontrou pastas em ' + url_dados_abertos)
@@ -59,14 +68,15 @@ except:
     sys.exit(1)
 
 
+# Constrói a URL completa usando a referência mais recente encontrada
 url = url_dados_abertos + ultima_referencia
-# page = requests.get(url)    
+# page = requests.get(url)
 # data = page.text
 soup = BeautifulSoup(requests.get(url).text, features="lxml")
 lista = []
 print('Relação de Arquivos em ' + url)
 for link in soup.find_all('a'):
-    if str(link.get('href')).endswith('.zip'): 
+    if str(link.get('href')).endswith('.zip'):
         cam = link.get('href')
         if not cam.startswith('http'):
             print(url+cam)
@@ -75,19 +85,42 @@ for link in soup.find_all('a'):
             print(cam)
             lista.append(cam)
 
-if __name__ == '__main__':        
+if __name__ == '__main__':
     resp = input(f'Deseja baixar os arquivos acima para a pasta {pasta_zip} (y/n)?')
     if resp.lower()!='y' and resp.lower()!='s':
         sys.exit()
-        
 
+# Calcula o tamanho total dos arquivos a serem baixados
+print('Calculando tamanho total dos arquivos...')
+tamanho_total = 0
+headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Windows; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.114 Safari/537.36", "Accept": "*/*"}
+for url_arquivo in lista:
+    try:
+        response = requests.head(url_arquivo, headers=headers, allow_redirects=True, timeout=10)
+        if 'Content-Length' in response.headers:
+            tamanho_total += int(response.headers['Content-Length'])
+    except:
+        # Se não conseguir obter o tamanho, continua sem somar
+        pass
 
-print(time.asctime(), 'Início do Download dos arquivos...')
+# Formata o tamanho total de forma legível
+def formatar_tamanho(bytes):
+    """Converte bytes para formato legível (KB, MB, GB, TB)"""
+    for unidade in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes < 1024.0:
+            return f"{bytes:.2f} {unidade}"
+        bytes /= 1024.0
+    return f"{bytes:.2f} PB"
+
+tamanho_formatado = formatar_tamanho(tamanho_total)
+quantidade_arquivos = len(lista)
+
+print(time.asctime(), f'Início do Download dos arquivos... ({quantidade_arquivos} arquivos, {tamanho_formatado} total)')
 
 if True: #baixa usando parfive, download em paralelo
     #downloader = parfive.Downloader()
     headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Windows; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.114 Safari/537.36", "Accept": "*/*"}
-    downloader = parfive.Downloader(max_conn=5, max_splits=1, config=parfive.SessionConfig(headers=headers))
+    downloader = parfive.Downloader(max_conn=8, max_splits=1, config=parfive.SessionConfig(headers=headers))
     for url in lista:
         downloader.enqueue_file(url, path=pasta_zip, filename=os.path.split(url)[1])
     downloader.download()
@@ -103,12 +136,12 @@ else: #baixar sequencial, rotina antiga
         # Don't use print() as it will print in new line every time.
         sys.stdout.write("\r" + progress_message)
         sys.stdout.flush()
-      
+
     for k, url in enumerate(lista):
         print('\n' + time.asctime() + f' - item {k}: ' + url)
         wget.download(url, out=os.path.join(pasta_zip, os.path.split(url)[1]), bar=bar_progress)
 
-        
+
 print('\n\n'+ time.asctime(), f' Finalizou {sys.argv[0]}!!!')
 print(f"Baixou {len(glob.glob(os.path.join(pasta_zip,'*.zip')))} arquivos.")
 if __name__ == '__main__':
